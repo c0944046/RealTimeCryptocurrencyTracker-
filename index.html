@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Cryptocurrency Tracker</title>
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <h1><i class="fas fa-coins"></i> Crypto Tracker</h1>
+        <div class="controls">
+            <select id="sort-by">
+                <option value="market_cap">Sort by Market Cap</option>
+                <option value="price">Sort by Price</option>
+                <option value="24h_change">Sort by 24h Change</option>
+            </select>
+            <button id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="crypto-list">
+            <h2>Available Cryptocurrencies</h2>
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search cryptocurrencies...">
+            </div>
+            <div class="list-container">
+                <table id="crypto-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Symbol</th>
+                            <th>Price (USD)</th>
+                            <th>24h Change</th>
+                            <th>Market Cap</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="crypto-table-body">
+                        <!-- Crypto data will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="comparison-section">
+            <h2>Comparison</h2>
+            <div class="comparison-container" id="comparison-container">
+                <div class="empty-state">
+                    <p>Select up to 5 cryptocurrencies to compare</p>
+                </div>
+                <!-- Comparison cards will be added here -->
+            </div>
+            <div class="comparison-controls">
+                <button id="clear-comparison" class="secondary-btn">Clear Comparison</button>
+                <button id="save-comparison" class="primary-btn">Save Selection</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Data provided by CoinGecko API</p>
+        <p>Last updated: <span id="last-updated"></span></p>
+    </footer>
+
+    <div class="notification" id="notification"></div>
+
+    <script src="./script.js"></script>
+</body>
+</html>
