@@ -48,7 +48,6 @@ async function fetchCryptoData() {
     try {
         showNotification('Fetching latest cryptocurrency data...');
         
-        // Using CoinGecko's API to get top 100 cryptocurrencies by market cap
         const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false');
         
         if (!response.ok) {
@@ -56,10 +55,16 @@ async function fetchCryptoData() {
         }
         
         cryptoData = await response.json();
+        
+        // Match saved cryptos after data is loaded
+        if (selectedCryptos.length > 0 && selectedCryptos[0].id && !selectedCryptos[0].name) {
+            const savedIds = selectedCryptos.map(c => c.id);
+            selectedCryptos = cryptoData.filter(crypto => savedIds.includes(crypto.id));
+        }
+        
         renderCryptoTable();
         updateComparisonCards();
         
-        // Update last updated time
         const now = new Date();
         lastUpdatedSpan.textContent = now.toLocaleString();
         
@@ -80,8 +85,8 @@ function renderCryptoTable() {
     // Apply search filter
     if (searchQuery) {
         filteredData = filteredData.filter(crypto => 
-            crypto.name.toLowerCase().includes(searchQuery) || 
-            crypto.symbol.toLowerCase().includes(searchQuery)
+            (crypto.name && crypto.name.toLowerCase().includes(searchQuery)) || 
+            (crypto.symbol && crypto.symbol.toLowerCase().includes(searchQuery))
         );
     }
     
@@ -89,12 +94,12 @@ function renderCryptoTable() {
     filteredData.sort((a, b) => {
         switch (sortMethod) {
             case 'price':
-                return b.current_price - a.current_price;
+                return (b.current_price || 0) - (a.current_price || 0);
             case '24h_change':
-                return b.price_change_percentage_24h - a.price_change_percentage_24h;
+                return (b.price_change_percentage_24h || 0) - (a.price_change_percentage_24h || 0);
             case 'market_cap':
             default:
-                return b.market_cap - a.market_cap;
+                return (b.market_cap || 0) - (a.market_cap || 0);
         }
     });
     
@@ -107,13 +112,13 @@ function renderCryptoTable() {
         const row = document.createElement('tr');
         
         row.innerHTML = `
-            <td>${crypto.name}</td>
-            <td>${crypto.symbol.toUpperCase()}</td>
-            <td>$${crypto.current_price.toLocaleString()}</td>
-            <td class="${crypto.price_change_percentage_24h >= 0 ? 'positive' : 'negative'}">
-                ${crypto.price_change_percentage_24h >= 0 ? '+' : ''}${crypto.price_change_percentage_24h.toFixed(2)}%
+            <td>${crypto.name || 'N/A'}</td>
+            <td>${crypto.symbol ? crypto.symbol.toUpperCase() : 'N/A'}</td>
+            <td>$${(crypto.current_price || 0).toLocaleString()}</td>
+            <td class="${(crypto.price_change_percentage_24h || 0) >= 0 ? 'positive' : 'negative'}">
+                ${(crypto.price_change_percentage_24h || 0) >= 0 ? '+' : ''}${(crypto.price_change_percentage_24h || 0).toFixed(2)}%
             </td>
-            <td>$${crypto.market_cap.toLocaleString()}</td>
+            <td>$${(crypto.market_cap || 0).toLocaleString()}</td>
             <td>
                 <button class="action-btn ${isSelected ? 'remove' : ''}" data-id="${crypto.id}">
                     ${isSelected ? 'Remove' : 'Compare'}
@@ -165,21 +170,26 @@ function updateComparisonCards() {
     comparisonContainer.innerHTML = '';
     
     selectedCryptos.forEach(crypto => {
+        // Skip if crypto object is invalid
+        if (!crypto || !crypto.id) return;
+        
         const card = document.createElement('div');
         card.className = 'comparison-card';
         
         card.innerHTML = `
             <h3>
-                <img src="${crypto.image}" alt="${crypto.name}" width="24" height="24">
-                ${crypto.name}
+                ${crypto.image ? `<img src="${crypto.image}" alt="${crypto.name}" width="24" height="24">` : ''}
+                ${crypto.name || 'N/A'}
             </h3>
-            <span class="symbol">${crypto.symbol.toUpperCase()}</span>
-            <div class="price">$${crypto.current_price.toLocaleString()}</div>
-            <div class="change ${crypto.price_change_percentage_24h >= 0 ? 'positive' : 'negative'}">
-                <i class="fas ${crypto.price_change_percentage_24h >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'}"></i>
-                ${crypto.price_change_percentage_24h >= 0 ? '+' : ''}${crypto.price_change_percentage_24h.toFixed(2)}%
+            <span class="symbol">${crypto.symbol ? crypto.symbol.toUpperCase() : 'N/A'}</span>
+            <div class="price">$${crypto.current_price ? crypto.current_price.toLocaleString() : 'N/A'}</div>
+            <div class="change ${(crypto.price_change_percentage_24h || 0) >= 0 ? 'positive' : 'negative'}">
+                <i class="fas ${(crypto.price_change_percentage_24h || 0) >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'}"></i>
+                ${typeof crypto.price_change_percentage_24h === 'number' ? 
+                  ((crypto.price_change_percentage_24h >= 0 ? '+' : '') + crypto.price_change_percentage_24h.toFixed(2) + '%') : 
+                  'N/A'}
             </div>
-            <div>Market Cap: $${crypto.market_cap.toLocaleString()}</div>
+            <div>Market Cap: $${crypto.market_cap ? crypto.market_cap.toLocaleString() : 'N/A'}</div>
             <button class="remove-btn" data-id="${crypto.id}">
                 <i class="fas fa-times"></i> Remove
             </button>
@@ -220,30 +230,12 @@ function loadSelectedCryptos() {
         const savedComparison = localStorage.getItem('cryptoComparison');
         if (savedComparison) {
             const comparisonIds = JSON.parse(savedComparison);
-            // We'll populate the selectedCryptos when data is loaded
-            // Store the IDs for now
+            // Store just the IDs - we'll match with full data when loaded
             selectedCryptos = comparisonIds.map(id => ({ id }));
         }
     } catch (error) {
         console.error('Error loading saved comparison:', error);
     }
-}
-
-// When crypto data is loaded, match with saved IDs
-function matchSavedCryptos() {
-    if (!cryptoData.length || !selectedCryptos.length) return;
-    
-    // Filter cryptoData to only include saved IDs
-    const savedIds = selectedCryptos.map(c => c.id);
-    selectedCryptos = cryptoData.filter(crypto => savedIds.includes(crypto.id));
-    
-    // If we have more than 5 (unlikely but possible if localStorage was tampered with)
-    if (selectedCryptos.length > 5) {
-        selectedCryptos = selectedCryptos.slice(0, 5);
-    }
-    
-    renderCryptoTable();
-    updateComparisonCards();
 }
 
 // Show notification
